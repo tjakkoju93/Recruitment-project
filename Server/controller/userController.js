@@ -1,30 +1,71 @@
-const { getUser, createUser, updateUser, deleteUser } = require("../services/userService");
+const {
+  getUser,
+  createUser,
+  updateUser,
+  deleteUser,
+  loginUser,
+} = require("../services/userService");
 
 const getUserDetails = async (req, res) => {
-  const response = await getUser();
-  res.status(200).send(response[0]);
+  try {
+    const response = await getUser();
+    res.status(200).send(response[0]);
+  } catch (err) {
+    res.status(400).json({ message: err });
+  }
 };
 
 const createNewUser = async (req, res) => {
-  const data = req.body;
-  const user = await createUser(data);
-  if (!user) {
-    res.status(400).json({ message: "User creation is unsuccessful" });
+  try {
+    const data = req.body;
+    const token = await createUser(data);
+    if(!token){
+      res.status(400).json({message:"User creation failed"})
+    }
+    res.status(201).json(token);
+  } catch (err) {
+    res.status(400).json(err);
   }
-  res.status(201).json(user);
 };
 
 const updateUserDetails = async (req, res) => {
   const data = req.body;
   const { id } = req.params;
-  const user = await updateUser(data, id);
-  res.status(200).json(user);
+  try {
+    const user = await updateUser(data, id);
+    res.status(200).json(user);
+  } catch (err) {
+    res.status(400).json(err);
+  }
 };
 
-const deleteUserDetails= async(req,res) =>{
-  const {id} = req.params;
-  const user = await deleteUser (id);
+const deleteUserDetails = async (req, res) => {
+  const { id } = req.params;
+  try {
+    const user = await deleteUser(id);
+    if (user) {
+      res.status(200).json({ message: "User deleted successfully" });
+    }
+  } catch (err) {
+    res.status(400).json(err);
+  }
+};
 
-}
+const loginNewUser = async (req, res) => {
+  const data = req.body;
+  try {
+    const result = await loginUser(data);
+    console.log(result);
+    res.status(200).json(result)
+  } catch (err) {
+    res.status(400).json(err);
+  }
+};
 
-module.exports = { getUserDetails, createNewUser, updateUserDetails, deleteUserDetails };
+module.exports = {
+  getUserDetails,
+  createNewUser,
+  updateUserDetails,
+  deleteUserDetails,
+  loginNewUser,
+};

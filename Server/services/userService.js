@@ -2,25 +2,37 @@ const {
   userModel,
   userCreateModel,
   updateUserModel,
-  deleteUserModel
+  deleteUserModel,
+  loginUserModel,
 } = require("../model/userModel");
+const getToken = require("../utils/genToken");
 
 const getUser = async (req, res) => {
-  const data = await userModel();
-  return data;
+  try {
+    const data = await userModel();
+    return data;
+  } catch (err) {
+    res.status(400).send({ message: err });
+  }
 };
 
 const createUser = async (data) => {
   if (!data) {
     console.log("Please enter all the mandatory fields");
   }
-  const createdAt = new Date();
-  const updatedAt = new Date();
-  const user = await userCreateModel(data, createdAt, updatedAt);
-  if (!user) {
-    throw new Error("user creation is not successful");
+  try {
+    const id = await userCreateModel(data);
+    if (!id) {
+      throw new Error("user creation is not successful");
+    }
+    const token = await getToken(id);
+    if (!token) {
+      throw new Error("Token generation failed");
+    }
+    return token;
+  } catch (err) {
+    res.status(400).send({ message: err });
   }
-  return user;
 };
 
 const updateUser = async (data, id) => {
@@ -60,7 +72,29 @@ const deleteUser = async (id) => {
   if (!id) {
     throw new Error("Enter valid user id");
   }
-  await deleteUserModel(id);
+  try {
+    await deleteUserModel(id);
+    return true;
+  } catch (err) {
+    res.status(400).send({ message: err });
+  }
 };
 
-module.exports = { getUser, createUser, updateUser, deleteUser };
+const loginUser = async (data) => {
+  const { email, password } = data;
+  if (!data) {
+    throw new Error("Enter valid user details");
+  }
+  try {
+    const user = await loginUserModel( email, password );
+    const token = await getToken(user.email);
+    if (!token) {
+      throw new Error("Token generation failed");
+    }
+    return token;
+  } catch {
+    res.status(400).send({ message: err });
+  }
+};
+
+module.exports = { getUser, createUser, updateUser, deleteUser, loginUser };
