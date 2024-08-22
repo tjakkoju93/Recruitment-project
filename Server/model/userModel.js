@@ -23,9 +23,13 @@ const checkExistId = async (id) => {
   }
 };
 
-const userModel = async (req, res) => {
-  const query = "SELECT * FROM Employee_Employers";
-  const data = await pool.query(query);
+const userModel = async (details) => {
+  if (!details) {
+    const query = "SELECT * FROM Employee_Employers";
+    const data = await pool.query(query);
+    return data;
+  }
+  const data = await checkExistId(details);
   return data;
 };
 
@@ -76,7 +80,7 @@ const userCreateModel = async (data) => {
       user_role
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
 
-    const result = await pool.query(query, [
+    const [result] = await pool.query(query, [
       first_name,
       last_name,
       email,
@@ -94,11 +98,12 @@ const userCreateModel = async (data) => {
       user_role,
     ]);
 
-    if (result[0].affectedRows < 1) {
+    if (result.affectedRows < 1) {
       throw err;
     }
-
-    return email;
+    const user = await checkExistEmail(email);
+    console.log(user);
+    return user;
   } catch (error) {
     console.error("Error creating user:", error.message);
     throw error;
@@ -108,7 +113,6 @@ const userCreateModel = async (data) => {
 const loginUserModel = async (email, password) => {
   try {
     const [user] = await checkExistEmail(email);
-    console.log(user.email, user.password);
     const match = await bcrypt.compare(password, user.password);
     if (!match) {
       throw err;
@@ -119,21 +123,19 @@ const loginUserModel = async (email, password) => {
   }
 };
 
-const updateUserModel = async (fields, values, id) => {
-  const existingUserQuery = `select email from Employee_Employers where id = ?`;
-  const existingUser = await pool.query(existingUserQuery, [id]);
+const updateUserModel = async (fields, values, email) => {
+  const existingUser = await checkExistEmail(email);
 
   if (!existingUser) {
     throw new Error("User doesn't exists.");
   }
 
   const query = `UPDATE Employee_Employers SET
-  ${fields.join(", ")} WHERE id = ?`;
+  ${fields.join(", ")} WHERE email = ?`;
 
   await pool.query(query, values);
-  const userQuery = `select * from Employee_Employers where id = ?`;
-  const user = await pool.query(userQuery, [id]);
-  return user[0];
+  const [user] = await checkExistEmail(email);
+  return user;
 };
 
 const deleteUserModel = async (id) => {
@@ -157,4 +159,6 @@ module.exports = {
   updateUserModel,
   deleteUserModel,
   loginUserModel,
+  checkExistEmail,
+  checkExistId,
 };

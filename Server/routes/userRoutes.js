@@ -4,17 +4,27 @@ const {
   createNewUser,
   updateUserDetails,
   deleteUserDetails,
-  loginNewUser
+  loginNewUser,
+  getUserDetailsById
 } = require("../controller/userController");
 
 const userRoutes = express.Router();
 
-// const authUser = require("../middleware/authmiddleware");
+const { authUser, authRole } = require("../middleware/authmiddleware");
 
-userRoutes.post("/login",loginNewUser)
+
+//--------------------- Employee Routes ---------------------------
+userRoutes.get("/employee", authUser, authRole("EMPLOYEE"), getUserDetails);
+userRoutes.patch("/employee", authUser,authRole("EMPLOYEE"), updateUserDetails);
+
+//--------------------- Employer Routes ---------------------------
+userRoutes.get("/employer", authUser,authRole("EMPLOYER"), getUserDetails);
+userRoutes.patch("/employer",authUser, authRole("EMPLOYER"), updateUserDetails);
+
+//-------------------- global routes --------------------------
+userRoutes.post("/login", loginNewUser);
 userRoutes.post("/", createNewUser);
-userRoutes.get("/", getUserDetails);
-userRoutes.patch("/:id",updateUserDetails)
-userRoutes.delete("/:id",deleteUserDetails)
+userRoutes.get("/:id", getUserDetailsById);
+userRoutes.delete("/:id", deleteUserDetails);
 
 module.exports = userRoutes;

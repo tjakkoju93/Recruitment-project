@@ -1,4 +1,5 @@
 const pool = require("../connection/db");
+const User = require("../model/userModel");
 
 const getJobDetailsId = async (job_id) => {
   const query = "select * from job_details where job_id = ?";
@@ -17,26 +18,61 @@ const getEmployerJobs = async (employerID) => {
   const [result] = await pool.query(query, employerID);
   return result;
 };
-const getEmployeeJobs = async (employeeID) => {
-  const query = "select * from job_details where employeeID = ?";
-  const [result] = await pool.query(query, employeeID);
-  return result;
-};
+// const getEmployeeJobs = async (employeeID) => {
+//   const query = "select * from job_details where employeeID = ?";
+//   const [result] = await pool.query(query, employeeID);
+//   return result;
+// };
 
-const getJobModel = async (job_id) => {
+const getAppliedJobs = async (user_role, id) => {
   try {
     if (user_role == "EMPLOYEE") {
-      const result = await getEmployeeJobs(employeeID);
-    } else if (user_role == "EMPLOYER") {
-      const result = await getEmployerJobs(employerID);
+      const query = `select * from job_details where employeeID = ? and jobStatus = "APPLIED" `;
+      const [result] = await pool.query(query, id);
+      return result;
     }
+    if (user_role == "EMPLOYER") {
+      const query = `select * from job_details where employerID = ? and jobStatus = "APPLIED" `;
+      const [result] = await pool.query(query, id);
+      return result;
+    }
+  } catch (err) {
+    throw error({ message: err });
+  }
+};
+
+// const getJobModel = async (job_id) => {
+//   try {
+//     if (user_role == "EMPLOYEE") {
+//       const result = await getEmployeeJobs(employeeID);
+//     } else
+//      if (user_role == "EMPLOYER") {
+//       const result = await getEmployerJobs(employerID);
+//     }
+//   } catch (err) {
+//     throw new Error(err);
+//   }
+// };
+
+const getEmployerJobModel = async (id) => {
+  try {
+    const user = await User.checkExistEmail(id);
+    if (!user) {
+      throw error({ message: error });
+    }
+    const result = await getEmployerJobs(id);
+    console.log(result);
+    return result;
   } catch (err) {
     throw new Error(err);
   }
 };
 
-const postJobModel = async (data) => {
-  console.log(data);
+const postJobModel = async (data, id) => {
+  const exists = await User.checkExistId(id);
+  if (!exists) {
+    throw error({ message: Error });
+  }
   const {
     jobcompanyName,
     jobRole,
@@ -56,10 +92,10 @@ const postJobModel = async (data) => {
     jobLocation,
     jobGraduate,
     language,
-    jobNoticePeriod
-  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
-
-    const result = await pool.query(query, [
+    jobNoticePeriod,
+    employerID
+  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+    await pool.query(query, [
       jobcompanyName,
       jobRole,
       jobTechnologies,
@@ -68,17 +104,24 @@ const postJobModel = async (data) => {
       jobGraduate,
       language,
       jobNoticePeriod,
+      id,
     ]);
-    return getAllJobs();
+    return getEmployerJobs(id);
   } catch (error) {
     throw error;
   }
 };
 
-const updateJobModel = async (fields, values, job_id) => {
+const updateJobModel = async (fields, values, job_id, id) => {
+  const exists = await User.checkExistId(id);
+  console.log(exists);
+  if (!exists) {
+    throw error({ message: Error });
+  }
   try {
     const query = `UPDATE job_details SET
-    ${fields.join(", ")} WHERE job_id = ?`;
+    ${fields.join(", ")} WHERE job_id = ? and employerID = ?`;
+    console.log(values);
 
     const returnValue = await pool.query(query, values);
     if (returnValue[0].affectedRows >= 1) {
@@ -106,9 +149,36 @@ const deleteJobModel = async (job_id) => {
   }
 };
 
+const applyJobModel = async (id, job_id) => {
+  const [job] = await getJobDetailsId(job_id);
+  const [user] = await User.checkExistId(id);
+  if (!job || !user) {
+    throw Error({ message: "Enter valid job id or user" });
+  }
+  if (job.jobStatus == "Applied" && job.employeeID == id) {
+    throw error({ messgae: "User already applied for job" });
+  }
+  try {
+    if (user.user_role == "EMPLOYEE") {
+      const query =
+        "update job_details set jobStatus = ? , employeeID = ? where job_id = ?";
+      const [result] = await pool.query(query, ["APPLIED", id, job_id]);
+      if (result.affectedRows >= 1) {
+        return getAppliedJobs(user.user_role, id);
+      }
+    }
+  } catch (err) {
+    throw error({ message: err });
+  }
+};
+
 module.exports = {
   postJobModel,
   updateJobModel,
   deleteJobModel,
-  getJobModel
+  // getJobModel,
+  getEmployerJobModel,
+  applyJobModel,
+  getAppliedJobs,
+  getAllJobs,
 };

@@ -1,18 +1,29 @@
-const {
-  userModel,
-  userCreateModel,
-  updateUserModel,
-  deleteUserModel,
-  loginUserModel,
-} = require("../model/userModel");
+const User = require("../model/userModel");
 const getToken = require("../utils/genToken");
 
-const getUser = async (req, res) => {
+const { otpModule } = require("../services/otpService");
+
+const getUser = async (email) => {
   try {
-    const data = await userModel();
+    if (!email) {
+      throw error({ message: "Auth token required" });
+    }
+    const data = await User.checkExistEmail(email);
     return data;
   } catch (err) {
-    res.status(400).send({ message: err });
+    throw new Error({ message: err });
+  }
+};
+
+const getUserId = async (id) => {
+  try {
+    if (!id) {
+      throw error({ message: "Enter valid Id" });
+    }
+    const data = await User.checkExistId(id);
+    return data;
+  } catch (err) {
+    throw new Error({ message: err });
   }
 };
 
@@ -21,11 +32,13 @@ const createUser = async (data) => {
     console.log("Please enter all the mandatory fields");
   }
   try {
-    const id = await userCreateModel(data);
-    if (!id) {
+    const user = await User.userCreateModel(data);
+    if (!user) {
       throw new Error("user creation is not successful");
     }
-    const token = await getToken(id);
+    const otpGeneration = await otpModule(user);
+    console.log(otpGeneration);
+    const token = await getToken(user.email, user.user_role);
     if (!token) {
       throw new Error("Token generation failed");
     }
@@ -35,8 +48,8 @@ const createUser = async (data) => {
   }
 };
 
-const updateUser = async (data, id) => {
-  if (!data || !id) {
+const updateUser = async (data, email) => {
+  if (!data || !email) {
     throw new Error("Provide valid data and id");
   }
   const fields = [];
@@ -58,10 +71,8 @@ const updateUser = async (data, id) => {
   if (fields.length === 0) {
     throw new Error("No fields to update.");
   }
-
-  values.push(id);
-
-  const user = await updateUserModel(fields, values, id);
+  values.push(email);
+  const user = await User.updateUserModel(fields, values, email);
   if (!user) {
     throw new Error("Update unsuccessful");
   }
@@ -73,7 +84,7 @@ const deleteUser = async (id) => {
     throw new Error("Enter valid user id");
   }
   try {
-    await deleteUserModel(id);
+    await User.deleteUserModel(id);
     return true;
   } catch (err) {
     res.status(400).send({ message: err });
@@ -86,8 +97,8 @@ const loginUser = async (data) => {
     throw new Error("Enter valid user details");
   }
   try {
-    const user = await loginUserModel( email, password );
-    const token = await getToken(user.email);
+    const user = await User.loginUserModel(email, password);
+    const token = await getToken(user.id, user.user_role);
     if (!token) {
       throw new Error("Token generation failed");
     }
@@ -97,4 +108,11 @@ const loginUser = async (data) => {
   }
 };
 
-module.exports = { getUser, createUser, updateUser, deleteUser, loginUser };
+module.exports = {
+  getUser,
+  createUser,
+  updateUser,
+  deleteUser,
+  loginUser,
+  getUserId,
+};
