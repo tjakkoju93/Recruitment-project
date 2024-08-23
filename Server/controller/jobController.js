@@ -27,6 +27,10 @@ const updateJobDetails = async (req, res) => {
   const { job_id } = req.params;
   const { id, user_role } = req.user;
   try {
+    if (user_role == "EMPLOYEE") {
+      res.status(400).json({message : "User doesnt have access to update job"})
+    }
+
     if (user_role == "EMPLOYER") {
       const result = await jobService.updateJobs(data, job_id, id);
       return res.status(200).json(result);
@@ -50,6 +54,7 @@ const deleteJobDetails = async (req, res) => {
 const applyJobsEmployee = async (req, res) => {
   const { job_id } = req.params;
   const { id, user_role } = req.user;
+
   try {
     const result = await jobService.applyJobs(id, job_id);
     res.status(200).json(result);

@@ -102,7 +102,6 @@ const userCreateModel = async (data) => {
       throw err;
     }
     const user = await checkExistEmail(email);
-    console.log(user);
     return user;
   } catch (error) {
     console.error("Error creating user:", error.message);

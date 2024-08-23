@@ -18,21 +18,20 @@ const getEmployerJobs = async (employerID) => {
   const [result] = await pool.query(query, employerID);
   return result;
 };
-// const getEmployeeJobs = async (employeeID) => {
-//   const query = "select * from job_details where employeeID = ?";
-//   const [result] = await pool.query(query, employeeID);
-//   return result;
-// };
 
 const getAppliedJobs = async (user_role, id) => {
   try {
     if (user_role == "EMPLOYEE") {
-      const query = `select * from job_details where employeeID = ? and jobStatus = "APPLIED" `;
+      const query = ` select jd.*,em.employeeID,em.appliedStatus from job_details jd 
+      join employee_mapping em on jd.job_id = em.job_id 
+      where em.employeeID = ? and appliedStatus = "APPLIED" `;
       const [result] = await pool.query(query, id);
       return result;
     }
     if (user_role == "EMPLOYER") {
-      const query = `select * from job_details where employerID = ? and jobStatus = "APPLIED" `;
+      const query = `select jd.*,em.appliedStatus,em.employeeID from job_details jd 
+      join employee_mapping em on jd.job_id = em.job_id
+      where  em.appliedStatus = "APPLIED" and jd.employerID = ? `;
       const [result] = await pool.query(query, id);
       return result;
     }
@@ -113,15 +112,17 @@ const postJobModel = async (data, id) => {
 };
 
 const updateJobModel = async (fields, values, job_id, id) => {
-  const exists = await User.checkExistId(id);
-  console.log(exists);
-  if (!exists) {
-    throw error({ message: Error });
+  const [exists] = await User.checkExistId(id);
+  const [jobs] = await getJobDetailsId(job_id);
+
+  if (!exists || !jobs) {
+    throw new error({ message: Error });
+  } else if (exists.id != jobs.employerID) {
+    return Error({ message: "User doesnt have access to update the job" });
   }
   try {
     const query = `UPDATE job_details SET
     ${fields.join(", ")} WHERE job_id = ? and employerID = ?`;
-    console.log(values);
 
     const returnValue = await pool.query(query, values);
     if (returnValue[0].affectedRows >= 1) {
@@ -149,26 +150,45 @@ const deleteJobModel = async (job_id) => {
   }
 };
 
+const employeeJobs = async (job_id, employeeID) => {
+  const query =
+    "select * from employee_mapping where job_id = ? and employeeID =?";
+  const [result] = await pool.query(query, [job_id, employeeID]);
+  return result;
+};
+
 const applyJobModel = async (id, job_id) => {
-  const [job] = await getJobDetailsId(job_id);
-  const [user] = await User.checkExistId(id);
-  if (!job || !user) {
-    throw Error({ message: "Enter valid job id or user" });
-  }
-  if (job.jobStatus == "Applied" && job.employeeID == id) {
-    throw error({ messgae: "User already applied for job" });
-  }
   try {
-    if (user.user_role == "EMPLOYEE") {
-      const query =
-        "update job_details set jobStatus = ? , employeeID = ? where job_id = ?";
-      const [result] = await pool.query(query, ["APPLIED", id, job_id]);
-      if (result.affectedRows >= 1) {
-        return getAppliedJobs(user.user_role, id);
-      }
+    const [job] = await getJobDetailsId(job_id);
+    const [user] = await User.checkExistId(id);
+
+    if (!job || !user) {
+      throw new Error("Invalid job ID or user ID");
+    }
+
+    const employeeJobsApplied = await employeeJobs(job_id, id);
+    if (employeeJobsApplied.length > 0) {
+      throw new Error("User has already applied for this job");
+    }
+
+    if (user.user_role !== "EMPLOYEE") {
+      throw new Error("Only employees can apply for jobs");
+    }
+
+    const query =
+      "INSERT INTO employee_mapping (job_id, employeeID, appliedStatus) VALUES (?, ?, ?)";
+    const [result] = await pool.query(query, [job_id, user.id, "APPLIED"]);
+    const response = await getAppliedJobs(user.user_role, id);
+
+    if (result.affectedRows >= 1) {
+      return response;
+    } else {
+      throw new Error("Failed to apply for the job");
     }
   } catch (err) {
-    throw error({ message: err });
+    throw new Error(
+      err.message || "An error occurred while applying for the job"
+    );
   }
 };
 
@@ -181,4 +201,5 @@ module.exports = {
   applyJobModel,
   getAppliedJobs,
   getAllJobs,
+  employeeJobs,
 };

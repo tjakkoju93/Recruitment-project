@@ -13,7 +13,7 @@ const { authUser, authRole } = require("../middleware/authmiddleware");
 
 //--------------------- Employee Routes ---------------------------
 jobRouter.get("/employee", authUser, authRole("EMPLOYEE"), getJobDetails);
-jobRouter.patch("/applyjob_employee/:job_id",authUser,authRole("EMPLOYEE"),applyJobsEmployee);
+jobRouter.post("/applyjob_employee/:job_id",authUser,authRole("EMPLOYEE"),applyJobsEmployee);
 jobRouter.get("/applied_employee",authUser,authRole("EMPLOYEE"),jobsAppliedDetails);
 
 //--------------------- Employer Routes ---------------------------

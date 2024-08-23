@@ -2,8 +2,11 @@ const nodemailer = require("nodemailer");
 require("dotenv").config();
 const { verifyOtpModel, sendOtpModel } = require("../model/otpModel");
 
-const getOTP = async () => {
-  return Math.floor(Math.random() * (999999 - 100000)) + 100000;
+const getToken = require("../utils/genToken");
+
+const getOTP = () => {
+  const otp = Math.floor(Math.random() * (999999 - 100000)) + 100000;
+  return otp;
 };
 
 const transporter = nodemailer.createTransport({
@@ -39,18 +42,18 @@ const sendEmail = (otp, email) => {
   }
 };
 
-const otpModule = (user) => {
-  const otp = genOTP();
-  if (!otp || !user.email || !user.id) {
+const otpModule = async (user) => {
+  const otp = getOTP();
+  if (!otp || !user) {
     throw Error({ message: "enter valid otp and email" });
   }
   try {
-    sendEmail(otp, user.email);
-    const result = sendOtpModel(otp, user.id);
-    if (!result) {
-      throw error({ message: "OTP not verified" });
+    await sendEmail(otp, user.email);
+    const data = await sendOtpModel(otp, user.id);
+    if (!data) {
+      throw error({ message: "OTP not geenrated" });
     }
-    const token = generateToken(user._id, user.user_role);
+    const token = await getToken(data.id, data.user_role);
     return token;
   } catch (err) {
     throw Error({ message: err });
@@ -63,6 +66,7 @@ const verifyOtp = async (id, otp) => {
   }
   try {
     const result = await verifyOtpModel(id, otp);
+    return result;
   } catch (err) {
     throw Error({ message: err });
   }

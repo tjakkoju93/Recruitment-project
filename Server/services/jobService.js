@@ -81,6 +81,7 @@ const applyJobs = async (id, job_id) => {
     throw Error({ message: "Enter valid job id" });
   }
   try {
+
     const result = await jobModel.applyJobModel(id,job_id);
     return result
   } catch (err) {

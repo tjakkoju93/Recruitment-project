@@ -32,13 +32,11 @@ const createUser = async (data) => {
     console.log("Please enter all the mandatory fields");
   }
   try {
-    const user = await User.userCreateModel(data);
+    const [user] = await User.userCreateModel(data);
     if (!user) {
       throw new Error("user creation is not successful");
     }
-    const otpGeneration = await otpModule(user);
-    console.log(otpGeneration);
-    const token = await getToken(user.email, user.user_role);
+    const token = await otpModule(user);
     if (!token) {
       throw new Error("Token generation failed");
     }
