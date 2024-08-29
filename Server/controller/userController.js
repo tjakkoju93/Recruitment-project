@@ -1,7 +1,8 @@
 const User = require("../services/userService");
 
 const getUserDetails = async (req, res) => {
-  const { email, user_role } = req.user;
+  const { email, user_role ,_id} = req.user;
+  console.log(email,role,_id)
   try {
     if (email) {
       const response = await User.getUser(email);
